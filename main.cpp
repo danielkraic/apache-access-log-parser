@@ -17,7 +17,7 @@ int main(int argc, char const *argv[])
 
   boost::optional<std::string> in_file;
   QueryCondition queryCond;
-  
+
 	try {
     namespace po = boost::program_options;
 
@@ -32,7 +32,7 @@ int main(int argc, char const *argv[])
 
 		po::variables_map vm;
 		po::store(po::parse_command_line(argc, argv, desc), vm);
-		po::notify(vm);    
+		po::notify(vm);
 
 		if (vm.count("help")) {
 		  std::cout << desc << "\n";
@@ -74,6 +74,6 @@ int main(int argc, char const *argv[])
   }
 
 
-  
+
 	return 0;
 }

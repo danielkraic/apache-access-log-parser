@@ -13,7 +13,7 @@ public:
 	DataStore(DataStore&&) = delete;
 	DataStore operator=(const DataStore&) = delete;
 	DataStore operator=(DataStore&&) = delete;
-	
+
 	bool connect() {
 		return true;
 	}
