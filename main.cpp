@@ -10,8 +10,11 @@
 
 int main(int argc, char const *argv[])
 {
+  Logger lg;
+  lg.setLevel(Logger::Level::DEBUG);
+
   if (argc < 2) {
-    log("No options specified. Use --help for more info");
+    lg.Notice("No options specified. Use --help for more info");
     return 0;
   }
 
@@ -46,25 +49,25 @@ int main(int argc, char const *argv[])
     if (vm.count("code"))   { queryCond.code   = vm["code"].as<std::string>(); }
 
 	} catch (std::exception &e) {
-    logErr("failed to parse cmd args, use --help");
+    lg.Error("failed to parse cmd args, use --help");
     return 1;
   }
 
   auto dataStore = std::make_shared<DataStore>();
   if (!dataStore->connect()) {
-    logErr("Failed to connect to DataStore");
+    lg.Error("Failed to connect to DataStore");
     return 1;
   }
 
   if (in_file) {
   	if (!boost::filesystem::exists(in_file.get())) {
-      log("file not exists", in_file.get());
+      lg.Error("file not exists", in_file.get());
       return 1;
     } else if (!boost::filesystem::is_regular_file(in_file.get())) {
-      log("file is not regural file", in_file.get());
+      lg.Error("file is not regural file", in_file.get());
       return 1;
     }
-    log("in_file OK", in_file.get());
+    lg.Debug("in_file OK", in_file.get());
 
     dataStore->loadData(in_file.get());
   }
@@ -73,7 +76,5 @@ int main(int argc, char const *argv[])
     dataStore->queryData(queryCond);
   }
 
-
-
-	return 0;
+  return 0;
 }
