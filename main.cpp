@@ -1,175 +1,79 @@
 #include <iostream>
-#include <fstream>
 #include <string>
-#include <vector>
+#include <memory>
+#include <boost/optional.hpp>
 #include <boost/filesystem.hpp>
-#include <boost/archive/text_oarchive.hpp>
-#include <boost/archive/text_iarchive.hpp>
-
-/*
-193.227.11.118 - - [01/Jun/2014:09:59:13 +0200] "GET /apache-log/access.log HTTP/1.1" 206 33904 "http://www.almhuette-raith.at/apache-log/" "Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.0; Trident/4.0)" "-"
-180.180.67.158 - - [31/Jul/2014:01:25:26 +0200] "GET /templates/jp_hotel/css/template.css HTTP/1.1" 200 10004 "http://www.almhuette-raith.at/apache-log/access.log" "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:5.0) Gecko/20100101 Firefox/5.0" "-"
-*/
-
-/*
-const size_t DATA_CHUNK_SIZE = 1000;
-
-using MapKey_t = ;
-using MapVal_t = ;
-using MapPair_t = std::pair<MapKey_t, MapVal_t>;
-
-*/
- 
-void parseLine(const std::string& s, std::vector<std::string>& v) {
-  v.clear();
-  std::string::size_type lastPos = 0;
-  std::string::size_type pos = 0;
-
-  while (lastPos != std::string::npos) {
-    if (s[lastPos] == '"' && s.size() > lastPos) {
-      lastPos += 1;
-      pos = s.find("\"", lastPos);
-      v.push_back( s.substr(lastPos, pos - lastPos) );
-      pos = s.find_first_not_of("\"", pos);
-    } else {
-      pos = s.find(" ", lastPos);
-      v.push_back( s.substr(lastPos, pos - lastPos) );
-    }
-    lastPos = s.find_first_not_of(" ", pos);
-  }
-}
- 
-bool deserializeLine(const std::string& line, MapPair_t& mapPair) {
-  std::vector<std::string> v;
-
-  if (!parseLine(s, v))
-    return false;
-
-  if (v.size() != LogData::SIZE)
-    return false;
-
-  return true;
-}
-
-/*
-bool storeValue(const MapKey_t& key, const MapVal_t& val) {
-  return db->storeVal(key, val);
-}
-
-bool storeMap(const Map_t& d_map) {
-  for (const auto& obj : d_map) {
-    if (!storeValue(obj.first, obj.second)) {
-      std::cerr << "Failed to store value" << std::endl;
-      return false;
-    }
-  }
-  return true;
-}
-*/
-
-void simple_log(const std::string& s, size_t pos) {
-  std::cout << s << " :: " << pos << std::endl;
-}
-
-bool getValue(const std::string& line, size_t *lastPos, std::string& value) {
-  simple_log("last", *lastPos);
-  size_t begPos = line.find(' ', *lastPos);
-  simple_log("beg", begPos);
-  *lastPos = line.find(' ', begPos);
-  simple_log("last", *lastPos);
-
-  if (begPos == std::string::npos || *lastPos == std::string::npos) {
-    simple_log("npos", 0);
-    return false;
-  }
-
-  simple_log("substr", *lastPos);
-  value = line.substr(begPos, *lastPos - begPos);
-  return true;
-}
-
-bool getQuotedValue(const std::string& line, size_t *lastPos, std::string& value) {
-  size_t begPos = line.find(" \"", *lastPos);
-  *lastPos = line.find("\" ", begPos);
-
-  if (begPos == std::string::npos || *lastPos == std::string::npos)
-    return false;
-
-  value = line.substr(begPos, *lastPos - begPos);
-  return true;
-}
-
-void parseLine(const std::string& line) {
-  std::string host, logname, user/*, time, first_line, status, bytes, referer, userAgent*/;
-  size_t pos = 0;
-
-  if (!getValue(line, &pos, host)) {
-   std::cerr << "failed to get host: " << pos << std::endl;
-   return;
-  }
-
-  /*if (!getValue(line, &pos, logname)) {
-   std::cerr << "failed to get logname: " << pos << std::endl;
-   return;
-  }
-
-  if (!getValue(line, &pos, user)) {
-   std::cerr << "failed to get user: " << pos << std::endl;
-   return;
-  }*/
-}
-
-void storeLine(const std::string& line) {
-
-  parseLine(line);
-  /*
-  MapPair_t mapPair;
-  if (!deserializeLine(line, mapPair))
-    std::cerr << "Failed to deserialize line" << std::endl;
-    return false;
-  }
-
-  d_map[mapPair.first].insert(mapPair.second);
-
-  if (d_map.size() > DATA_CHUNK_SIZE) {
-    if (!storeMap(d_map)) {
-      std::cerr << "Failed to store map" << std::endl;
-    }
-    d_map.clear();
-  }
-  */
-}
+#include <boost/program_options.hpp>
+#include "Logger.hpp"
+#include "DataStore.hpp"
+#include "QueryCondition.hpp"
 
 int main(int argc, char const *argv[])
 {
   if (argc < 2) {
-    std::cerr << "Missing param: apache_access_log" << std::endl;
+    log("No options specified. Use --help for more info");
+    return 0;
+  }
+
+  boost::optional<std::string> in_file;
+  QueryCondition queryCond;
+  
+	try {
+    namespace po = boost::program_options;
+
+		po::options_description desc("Allowed options");
+		desc.add_options()
+		    ("help", "produce help message")
+		    ("file", po::value<std::string>(), "input apache access log file path")
+        ("date", po::value<std::string>(), "date for filtering results")
+        ("method", po::value<std::string>(), "request method for filtering results")
+        ("code", po::value<std::string>(), "http code for filtering results")
+  	;
+
+		po::variables_map vm;
+		po::store(po::parse_command_line(argc, argv, desc), vm);
+		po::notify(vm);    
+
+		if (vm.count("help")) {
+		  std::cout << desc << "\n";
+		  return 1;
+		}
+
+		if (vm.count("file")) { in_file = vm["file"].as<std::string>(); }
+
+    if (vm.count("date"))   { queryCond.date   = vm["date"].as<std::string>(); }
+    if (vm.count("method")) { queryCond.method = vm["method"].as<std::string>(); }
+    if (vm.count("code"))   { queryCond.code   = vm["code"].as<std::string>(); }
+
+	} catch (std::exception &e) {
+    logErr("failed to parse cmd args, use --help");
     return 1;
   }
 
-  std::string p = argv[1];
-  if (!boost::filesystem::exists(p)) {
-    std::cout << "File '" << p << "' does not exist\n";
-    return 0;
-  } else if (!boost::filesystem::is_regular_file(p)) {
-    if (boost::filesystem::is_directory(p))
-      std::cout << "File '" << p << "' is a directory\n";
-    else
-      std::cout << "File '" << p << "' exists, but is neither a regular file nor a directory\n";
+  auto dataStore = std::make_shared<DataStore>();
+  if (!dataStore->connect()) {
+    logErr("Failed to connect to DataStore");
+    return 1;
   }
 
-  std::ifstream ifile(p);
-  if (!ifile.good()) {
-    std::cerr << "failed to open file: '" << p << "'" << std::endl;
-    return 0;
+  if (in_file) {
+  	if (!boost::filesystem::exists(in_file.get())) {
+      log("file not exists", in_file.get());
+      return 1;
+    } else if (!boost::filesystem::is_regular_file(in_file.get())) {
+      log("file is not regural file", in_file.get());
+      return 1;
+    }
+    log("in_file OK", in_file.get());
+
+    dataStore->loadData(in_file.get());
   }
 
-  std::for_each(
-      std::istream_iterator<std::string>(ifile),
-      std::istream_iterator<std::string>(),
-      [] (const std::string& line) {
-        storeLine(line);
-      });
+  if (queryCond.isValid()) {
+    dataStore->queryData(queryCond);
+  }
 
-  return 0;
+
+  
+	return 0;
 }
