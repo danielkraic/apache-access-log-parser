@@ -26,11 +26,11 @@ int main(int argc, char const *argv[])
 
 		po::options_description desc("Allowed options");
 		desc.add_options()
-		    ("help", "produce help message")
-		    ("file", po::value<std::string>(), "input apache access log file path")
-        ("date", po::value<std::string>(), "date for filtering results")
-        ("method", po::value<std::string>(), "request method for filtering results")
-        ("code", po::value<std::string>(), "http code for filtering results")
+		    ("help,h", "produce help message")
+		    ("file,f",   po::value<std::string>(), "input apache access log file path")
+        ("date,d",   po::value<std::string>(), "date (in format YYYY-MM-DD) for filtering results")
+        ("method,m", po::value<std::string>(), "request method (GET, POST,...) for filtering results")
+        ("code,c",   po::value<int>(), "http code number for filtering results")
   	;
 
 		po::variables_map vm;
@@ -44,16 +44,37 @@ int main(int argc, char const *argv[])
 
 		if (vm.count("file")) { in_file = vm["file"].as<std::string>(); }
 
-    if (vm.count("date"))   { queryCond.date   = vm["date"].as<std::string>(); }
-    if (vm.count("method")) { queryCond.method = vm["method"].as<std::string>(); }
-    if (vm.count("code"))   { queryCond.code   = vm["code"].as<std::string>(); }
+    if (vm.count("date"))   { queryCond.setDate(vm["date"].as<std::string>()); }
+    if (vm.count("method")) { queryCond.setMethod(vm["method"].as<std::string>()); }
+    if (vm.count("code"))   { queryCond.setCode(vm["code"].as<int>()); }
 
 	} catch (std::exception &e) {
-    lg.Error("failed to parse cmd args, use --help");
+    lg.Error("Failed to parse cmd args", e.what());
     return 1;
   }
 
-  auto dataStore = std::make_shared<DataStore>();
+  {
+    auto d = queryCond.getDate();
+    if (d)
+      lg.Debug("Date", d.get());
+    else
+      lg.Debug("Date", "NO");
+
+    auto m = queryCond.getMethod();
+    if (m)
+      lg.Debug("Method", m.get());
+    else
+      lg.Debug("Method", "NO");
+
+    auto c = queryCond.getCode();
+    if (c)
+      lg.Debug("Code", c.get());
+    else
+      lg.Debug("Code", "NO");
+  }
+
+  //mongo::client::initialize();
+  auto dataStore = std::make_shared<DataStore>(lg);
   if (!dataStore->connect()) {
     lg.Error("Failed to connect to DataStore");
     return 1;

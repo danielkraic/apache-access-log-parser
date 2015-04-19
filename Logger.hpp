@@ -1,6 +1,8 @@
 #ifndef LOGGER_HPP
 #define LOGGER_HPP
 
+#include <mutex>
+
 class Logger
 {
 public:
@@ -11,8 +13,9 @@ public:
   };
 
   Logger() :
+    m_level(Level::DEBUG),
     m_log_stream(std::cout.rdbuf()),
-    m_level(Level::DEBUG)
+    m_log_stream_mutex()
   {
   }
 
@@ -41,21 +44,25 @@ public:
 private:
   template <typename T>
   void log(const char * level, T v) {
+    std::lock_guard<std::mutex> l(m_log_stream_mutex);
     m_log_stream << level << ": " << v << std::endl;
   }
 
   template <typename T1, typename T2>
   void log(const char * level, T1 v1, T2 v2) {
+    std::lock_guard<std::mutex> l(m_log_stream_mutex);
     m_log_stream << level << ": " << v1 << ": " << v2 << std::endl;
   }
 
   template <typename T1, typename T2, typename T3, typename T4>
   void log(const char * level, T1 v1, T2 v2, T3 v3, T4 v4) {
+    std::lock_guard<std::mutex> l(m_log_stream_mutex);
     m_log_stream << level << ": " << v1 << ": " << v2 << ", " << v3 << ": " << v4 << std::endl;
   }
 
-  std::ostream m_log_stream;
   Level m_level;
+  std::ostream m_log_stream;
+  std::mutex m_log_stream_mutex;
 };
 
 #endif // LOGGER_HPP
