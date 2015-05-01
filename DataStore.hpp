@@ -24,6 +24,8 @@ public:
 	bool queryData(const QueryCondition& queryCond);
 
 private:
+	using DataIter = std::vector<std::string>::const_iterator;
+
 	const unsigned m_threads_num;
 	std::vector<mongo::DBClientConnection> m_mongoDBs;
 	Logger& m_logger;
@@ -31,7 +33,8 @@ private:
 	static const constexpr char * m_collection_name = "apache_log_data.apache_data";
 
 	bool readItems(std::ifstream& f);
-	bool insertData(const std::vector<mongo::BSONObj>& loaded_data);
+	bool insertData(const std::vector<std::string>& lines);
+	bool insertDataItems(DataIter itBegin, DataIter itEnd, unsigned thread_num);
 };
 
 #endif // DATA_STORE_HPP
