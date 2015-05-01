@@ -9,7 +9,7 @@
 class DataStore
 {
 public:
-	DataStore(Logger& logger);
+	DataStore(Logger& logger, unsigned threads_num);
 	~DataStore() = default;
 
 	DataStore(const DataStore&) = delete;
@@ -24,10 +24,14 @@ public:
 	bool queryData(const QueryCondition& queryCond);
 
 private:
-	mongo::DBClientConnection m_mongo;
+	const unsigned m_threads_num;
+	std::vector<mongo::DBClientConnection> m_mongoDBs;
 	Logger& m_logger;
 	static const constexpr char * m_host = "localhost";
 	static const constexpr char * m_collection_name = "apache_log_data.apache_data";
+
+	bool readItems(std::ifstream& f);
+	bool insertData(const std::vector<mongo::BSONObj>& loaded_data);
 };
 
 #endif // DATA_STORE_HPP

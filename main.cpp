@@ -18,6 +18,7 @@ int main(int argc, char const *argv[])
     return 0;
   }
 
+  int threads_num{1};
   boost::optional<std::string> in_file;
   QueryCondition queryCond;
 
@@ -26,11 +27,12 @@ int main(int argc, char const *argv[])
 
 		po::options_description desc("Allowed options");
 		desc.add_options()
-		    ("help,h", "produce help message")
-		    ("file,f",   po::value<std::string>(), "input apache access log file path")
-        ("date,d",   po::value<std::string>(), "date (in format YYYY-MM-DD) for filtering results")
-        ("method,m", po::value<std::string>(), "request method (GET, POST,...) for filtering results")
-        ("code,c",   po::value<int>(), "http code number for filtering results")
+		    ("help,h",    "produce help message")
+		    ("threads,t", po::value<int>()->default_value(1), "number of insert threads (1-100)")
+        ("file,f",    po::value<std::string>(), "input apache access log file path")
+        ("date,d",    po::value<std::string>(), "date (in format YYYY-MM-DD) for filtering results")
+        ("method,m",  po::value<std::string>(), "request method (GET, POST,...) for filtering results")
+        ("code,c",    po::value<int>(), "http code number for filtering results")
   	;
 
 		po::variables_map vm;
@@ -42,7 +44,16 @@ int main(int argc, char const *argv[])
 		  return 1;
 		}
 
-		if (vm.count("file")) { in_file = vm["file"].as<std::string>(); }
+    if (vm.count("threads")) {
+      threads_num = vm["threads"].as<int>();
+      if (threads_num < 1) {
+        throw std::runtime_error("'threads' must be positive integer");
+      }
+      if (threads_num > 100) {
+        throw std::runtime_error("'threads' must be <= 100"); 
+      }
+    }
+		if (vm.count("file"))    { in_file = vm["file"].as<std::string>(); }
 
     if (vm.count("date"))   { queryCond.setDate(vm["date"].as<std::string>()); }
     if (vm.count("method")) { queryCond.setMethod(vm["method"].as<std::string>()); }
@@ -52,29 +63,9 @@ int main(int argc, char const *argv[])
     lg.Error("Failed to parse cmd args", e.what());
     return 1;
   }
-
-  {
-    auto d = queryCond.getDate();
-    if (d)
-      lg.Debug("Date", d.get());
-    else
-      lg.Debug("Date", "NO");
-
-    auto m = queryCond.getMethod();
-    if (m)
-      lg.Debug("Method", m.get());
-    else
-      lg.Debug("Method", "NO");
-
-    auto c = queryCond.getCode();
-    if (c)
-      lg.Debug("Code", c.get());
-    else
-      lg.Debug("Code", "NO");
-  }
-
-  //mongo::client::initialize();
-  auto dataStore = std::make_shared<DataStore>(lg);
+  
+  mongo::client::initialize();
+  auto dataStore = std::make_shared<DataStore>(lg, static_cast<unsigned>(threads_num));
   if (!dataStore->connect()) {
     lg.Error("Failed to connect to DataStore");
     return 1;
@@ -94,7 +85,29 @@ int main(int argc, char const *argv[])
   }
 
   if (queryCond.isValid()) {
+    {
+      auto d = queryCond.getDate();
+      if (d)
+        lg.Debug("Query :: Date", d.get());
+      else
+        lg.Debug("Query :: Date", "NO");
+
+      auto m = queryCond.getMethod();
+      if (m)
+        lg.Debug("Query :: Method", m.get());
+      else
+        lg.Debug("Query :: Method", "NO");
+
+      auto c = queryCond.getCode();
+      if (c)
+        lg.Debug("Query :: Code", c.get());
+      else
+        lg.Debug("Query :: Code", "NO");
+    }
+
     dataStore->queryData(queryCond);
+  } else {
+    lg.Debug("Query ::  No query specified");
   }
 
   return 0;
