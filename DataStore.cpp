@@ -1,5 +1,7 @@
 #include <fstream>
 #include <future>
+#include <boost/iostreams/filtering_stream.hpp>
+#include <boost/iostreams/filter/gzip.hpp>
 #include "DataStore.hpp"
 #include "Parser.hpp"
 
@@ -63,11 +65,15 @@ bool DataStore::loadData(const std::string& in_file) {
 
 bool DataStore::readItems(std::ifstream& f)
 {
+  boost::iostreams::filtering_istream in;
+  in.push(boost::iostreams::gzip_decompressor());
+  in.push(f);
+
   std::string line;
   std::vector<std::string> lines;
   size_t lines_counter{0};
 
-  while (getline(f, line)) {
+  while (getline(in, line)) {
     lines_counter++;
     lines.push_back(line);
 
@@ -79,11 +85,9 @@ bool DataStore::readItems(std::ifstream& f)
     }
   }
 
-  m_logger.Debug("Inserting started");
   if (!insertData(lines)) {
     return false;
   }
-  m_logger.Debug("Inserting done");
 
   m_logger.Debug("Lines count: ", lines_counter);
   return true;
@@ -148,8 +152,29 @@ bool DataStore::insertDataItems(DataIter itBegin, DataIter itEnd, unsigned threa
   return true;
 }
 
-bool DataStore::queryData(const QueryCondition& queryCond) {
-  //TODO: query data from DB
+bool DataStore::queryData(const mongo::BSONObj& queryObj) {
+  m_logger.Debug("queryData() ", queryObj.jsonString());
+
+  size_t cnt = m_mongoDBs[0].count(m_collection_name);
+  std::string err = m_mongoDBs[0].getLastError();
+  if (!err.empty()) {
+    m_logger.Error("Mongo count() error", err);
+    return false;
+  }
+  m_logger.Debug("collection name: ", m_collection_name);
+  m_logger.Debug("collection size: ", cnt);
+
+  auto cursor = m_mongoDBs[0].query(m_collection_name, queryObj);
+  err = m_mongoDBs[0].getLastError();
+  if (!err.empty()) {
+    m_logger.Error("Mongo query() error", err);
+    return false;
+  }
+
+  while (cursor->more()) {
+    mongo::BSONObj p = cursor->next();
+    std::cout << p.getStringField("line") << std::endl;
+  }
 
   return true;
 }

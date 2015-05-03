@@ -9,4 +9,4 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall")
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -std=c++11 -Wall")
 
 
-target_link_libraries(apache_log_parser mongoclient boost_system boost_regex boost_thread boost_filesystem boost_program_options)
+target_link_libraries(apache_log_parser mongoclient pthread boost_system boost_regex boost_thread boost_filesystem boost_program_options boost_iostreams)

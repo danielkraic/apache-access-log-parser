@@ -21,7 +21,7 @@ public:
 
 	bool loadData(const std::string& in_file);
 
-	bool queryData(const QueryCondition& queryCond);
+	bool queryData(const mongo::BSONObj& queryObj);
 
 private:
 	using DataIter = std::vector<std::string>::const_iterator;

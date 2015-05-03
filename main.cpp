@@ -29,7 +29,7 @@ int main(int argc, char const *argv[])
 		desc.add_options()
 		    ("help,h",    "produce help message")
 		    ("threads,t", po::value<int>()->default_value(1), "number of insert threads (1-100)")
-        ("file,f",    po::value<std::string>(), "input apache access log file path")
+        ("file,f",    po::value<std::string>(), "input gzipped apache access log file")
         ("date,d",    po::value<std::string>(), "date (in format YYYY-MM-DD) for filtering results")
         ("method,m",  po::value<std::string>(), "request method (GET, POST,...) for filtering results")
         ("code,c",    po::value<int>(), "http code number for filtering results")
@@ -85,29 +85,9 @@ int main(int argc, char const *argv[])
   }
 
   if (queryCond.isValid()) {
-    {
-      auto d = queryCond.getDate();
-      if (d)
-        lg.Debug("Query :: Date", d.get());
-      else
-        lg.Debug("Query :: Date", "NO");
-
-      auto m = queryCond.getMethod();
-      if (m)
-        lg.Debug("Query :: Method", m.get());
-      else
-        lg.Debug("Query :: Method", "NO");
-
-      auto c = queryCond.getCode();
-      if (c)
-        lg.Debug("Query :: Code", c.get());
-      else
-        lg.Debug("Query :: Code", "NO");
-    }
-
-    dataStore->queryData(queryCond);
+    dataStore->queryData(queryCond.getQueryObj());
   } else {
-    lg.Debug("Query ::  No query specified");
+    lg.Debug("No query specified");
   }
 
   return 0;

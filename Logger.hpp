@@ -14,7 +14,7 @@ public:
 
   Logger() :
     m_level(Level::DEBUG),
-    m_log_stream(std::cout.rdbuf()),
+    m_log_stream(std::cerr.rdbuf()),
     m_log_stream_mutex()
   {
   }

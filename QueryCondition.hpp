@@ -2,6 +2,7 @@
 #define QUERY_CONDITION_HPP
 
 #include <boost/optional.hpp>
+#include <mongo/bson/bson.h>
 #include "Parser.hpp"
 
 class QueryCondition
@@ -16,9 +17,9 @@ public:
   QueryCondition& operator=(const QueryCondition&) = delete;
   QueryCondition& operator=(QueryCondition&&) = delete;
 
-  boost::optional<time_t>      getDate()   { return m_unix_time; }  
-  boost::optional<std::string> getMethod() { return m_method; }
-  boost::optional<int>         getCode()   { return m_code; }
+  boost::optional<time_t>      getDate() const   { return m_unix_time; }
+  boost::optional<std::string> getMethod() const { return m_method; }
+  boost::optional<int>         getCode() const   { return m_code; }
 
   void setDate(const std::string& date) {
     m_unix_time = Parser::dateToUnixTime(date);
@@ -32,8 +33,23 @@ public:
     m_code = code;
   }
 
-  bool isValid() {
+  bool isValid() const {
   	return m_unix_time || m_method || m_code;
+  }
+
+  mongo::BSONObj getQueryObj() const {
+    mongo::BSONObjBuilder ret;
+
+    if (m_unix_time)
+      ret << "date" << std::to_string(m_unix_time.get());
+
+    if (m_method)
+      ret << "method" << m_method.get();
+
+    if (m_code)
+      ret << "code" << std::to_string(m_code.get());
+
+    return ret.obj();
   }
 
 private:
