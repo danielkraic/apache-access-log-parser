@@ -1,5 +1,6 @@
 #include <fstream>
 #include <future>
+#include <chrono>
 #include <boost/iostreams/filtering_stream.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
 #include "DataStore.hpp"
@@ -140,21 +141,13 @@ bool DataStore::insertDataItems(DataIter itBegin, DataIter itEnd, unsigned threa
       auto items = parser->parseLine(*it);
       if (items.size() >= 9) {
         BSONObjBuilder b;
-//        b.genOID();
         b.append("_id", make_id());
         b.appendTimeT("date", parser->parseApacheDate(items[3]));
         b.append("code", parser->parseHttpCode(items[5]));
         b.append("method", parser->parseRequestMethod(items[4]));
         b.append("line", *it);
 
-        loaded_data.push_back(b.obj()
-//          BSON( GENOID
-//            << "date" << static_cast<unsigned>(parser->parseApacheDate(items[3]))
-//            << "code" << parser->parseHttpCode(items[5])
-//            << "method" << parser->parseRequestMethod(items[4])
-//            << "line" << *it
-//          )
-        );
+        loaded_data.push_back(b.obj());
         items_counter++;
       }
     } catch (std::exception& e) {
@@ -163,14 +156,24 @@ bool DataStore::insertDataItems(DataIter itBegin, DataIter itEnd, unsigned threa
     }
   }
 
+  auto time_beg = std::chrono::high_resolution_clock::now();
+
   m_mongoDBs[thread_num].insert(m_collection_name, loaded_data);
+
+  auto time_end = std::chrono::high_resolution_clock::now();
+
+  long duration = std::chrono::duration_cast<std::chrono::seconds>(time_end - time_beg).count();
+  m_logger.Debug(
+          "Insert count", items_counter,
+          "duration", duration,
+          "inserts/second", (items_counter != 0) ? static_cast<double>(loaded_data.size()/duration) : 0.0
+  );
+
   std::string err = m_mongoDBs[thread_num].getLastError();
   if (!err.empty()) {
     m_logger.Error("Mongo error", err);
     return false;
   }
-
-  m_logger.Debug("Insert count: ", items_counter);
 
   return true;
 }
