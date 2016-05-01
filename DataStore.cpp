@@ -77,8 +77,9 @@ bool DataStore::readItems(std::ifstream& f)
     lines_counter++;
     lines.push_back(line);
 
-    if (lines.size() > 1000000) {
+    if (lines.size() >= 1000000) {
       if (!insertData(lines)) {
+        m_logger.Debug("insertData failed");
         return false;
       }
       lines.clear();
@@ -86,6 +87,7 @@ bool DataStore::readItems(std::ifstream& f)
   }
 
   if (!insertData(lines)) {
+    m_logger.Debug("insertData failed");
     return false;
   }
 
@@ -104,11 +106,13 @@ bool DataStore::insertData(const std::vector<std::string>& lines) {
     futures.push_back(
       std::async(std::launch::async, &DataStore::insertDataItems, this, itBeg, itEnd, i)
     );
+    m_logger.Debug("async started: ", std::distance(itBeg, itEnd));
   };
 
   std::vector<bool> res;
   for (auto& f : futures) {
     res.push_back(f.get());
+    m_logger.Debug("future get");
   }
 
   return std::all_of(res.begin(), res.end(), [](bool result) { return result == true; } );
@@ -149,6 +153,8 @@ bool DataStore::insertDataItems(DataIter itBegin, DataIter itEnd, unsigned threa
   }
 
   m_logger.Debug("Items count: ", items_counter);
+  m_logger.Debug("Insert count: ", loaded_data.size());
+
   return true;
 }
 
