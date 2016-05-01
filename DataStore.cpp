@@ -106,16 +106,26 @@ bool DataStore::insertData(const std::vector<std::string>& lines) {
     futures.push_back(
       std::async(std::launch::async, &DataStore::insertDataItems, this, itBeg, itEnd, i)
     );
-    m_logger.Debug("async started: ", std::distance(itBeg, itEnd));
   };
 
   std::vector<bool> res;
   for (auto& f : futures) {
     res.push_back(f.get());
-    m_logger.Debug("future get");
   }
 
   return std::all_of(res.begin(), res.end(), [](bool result) { return result == true; } );
+}
+
+std::string make_id() {
+  mongo::OID o = mongo::OID::gen();
+  auto str = o.toString();
+  std::vector<char> vec(str.begin(), str.end());
+  if (!vec.empty()) {
+    std::swap(vec[0], vec[vec.size() - 1]);
+  }
+  std::string id(vec.begin(), vec.end());
+
+  return (!id.empty()) ? id : mongo::OID::gen().toString();
 }
 
 bool DataStore::insertDataItems(DataIter itBegin, DataIter itEnd, unsigned thread_num) {
@@ -129,13 +139,21 @@ bool DataStore::insertDataItems(DataIter itBegin, DataIter itEnd, unsigned threa
     try {
       auto items = parser->parseLine(*it);
       if (items.size() >= 9) {
-        loaded_data.push_back(
-          BSON( GENOID
-            << "date" << std::to_string(parser->parseApacheDate(items[3]))
-            << "code" << std::to_string(parser->parseHttpCode(items[5]))
-            << "method" << parser->parseRequestMethod(items[4])
-            << "line" << *it
-          )
+        BSONObjBuilder b;
+//        b.genOID();
+        b.append("_id", make_id());
+        b.appendTimeT("date", parser->parseApacheDate(items[3]));
+        b.append("code", parser->parseHttpCode(items[5]));
+        b.append("method", parser->parseRequestMethod(items[4]));
+        b.append("line", *it);
+
+        loaded_data.push_back(b.obj()
+//          BSON( GENOID
+//            << "date" << static_cast<unsigned>(parser->parseApacheDate(items[3]))
+//            << "code" << parser->parseHttpCode(items[5])
+//            << "method" << parser->parseRequestMethod(items[4])
+//            << "line" << *it
+//          )
         );
         items_counter++;
       }
@@ -152,8 +170,7 @@ bool DataStore::insertDataItems(DataIter itBegin, DataIter itEnd, unsigned threa
     return false;
   }
 
-  m_logger.Debug("Items count: ", items_counter);
-  m_logger.Debug("Insert count: ", loaded_data.size());
+  m_logger.Debug("Insert count: ", items_counter);
 
   return true;
 }
