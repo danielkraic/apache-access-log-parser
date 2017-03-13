@@ -114,7 +114,7 @@ bool DataStore::insertData(const std::vector<std::string>& lines) {
     res.push_back(f.get());
   }
 
-  return std::all_of(res.begin(), res.end(), [](bool result) { return result == true; } );
+  return std::all_of(res.begin(), res.end(), [](const bool result) { return result; } );
 }
 
 std::string make_id() {
@@ -166,7 +166,7 @@ bool DataStore::insertDataItems(DataIter itBegin, DataIter itEnd, unsigned threa
   m_logger.Debug(
           "Insert count", items_counter,
           "duration", duration,
-          "inserts/second", (items_counter != 0) ? static_cast<double>(loaded_data.size()/duration) : 0.0
+          "inserts/second", (duration != 0) ? static_cast<double>(loaded_data.size()/duration) : 0.0
   );
 
   std::string err = m_mongoDBs[thread_num].getLastError();
